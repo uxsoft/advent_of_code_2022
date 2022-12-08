@@ -18,25 +18,18 @@ fn letter_priority(item: &u8) -> u8 {
 pub fn process(input: String) {
     let output: u32 = input
         .lines()
+        .collect::<Vec<_>>()
+        .chunks(3)
         .map(|elf| {
-            let (a, b) = halves(elf);
-            let ha: HashSet<_> = a.as_bytes().iter().collect();
-            let hb: HashSet<_> = b.as_bytes().iter().collect();
-            let both = ha.intersection(&hb);
             
-            print!("---{}---", elf);
+            let ha: HashSet<&u8> = elf[0].as_bytes().iter().collect();
+            let hb: HashSet<&u8> = elf[1].as_bytes().iter().collect();
+            let hc: HashSet<&u8> = elf[2].as_bytes().iter().collect();
 
-            dbg!(&ha);
-            dbg!(&hb);
-            dbg!(&both);
-            
-            let prio : u32 = both
-                .map(|x| letter_priority(*x))
-                .map(u32::from)
-                .sum();
+            let hab: HashSet<&u8> = ha.intersection(&hb).map(|x| *x).collect();
+            let common: Vec<&u8> = hab.intersection(&hc).map(|x| *x).collect();
 
-            println!("{} => {}", elf, prio);
-                
+            let prio: u32 = letter_priority(common[0]).into();
             prio
         })
         .sum();
