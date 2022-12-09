@@ -18,5 +18,5 @@ fn main() {
     let input = fs::read_to_string(format!("data\\{}", filename))
         .expect("Wrong file location");
     
-    day4::process(input);
+    day4_2::process(input);
 }
