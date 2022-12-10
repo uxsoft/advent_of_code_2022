@@ -35,15 +35,22 @@ impl Crane {
         }
         crane
     }
-
-    pub fn move_crate(&mut self, source: u8, target: u8) {
-        let elf_crate = self.stacks.get_mut(&source).unwrap().pop_front().expect("Error: attempted to lift an elf crate from an empty stack");
-        self.stacks.get_mut(&target).unwrap().push_front(elf_crate);
-    }
     
     pub fn move_crates(&mut self, n: u8, source: u8, target: u8) {
+        let source_stack = self.stacks.get_mut(&source).unwrap();
+        
+        let mut picked_up = LinkedList::new(); //This will be in the opposite order so we can take from the front
+
         for _ in 0..n {
-            self.move_crate(source, target);
+            let elf_crate = source_stack.pop_front().expect("Error: attempted to lift an elf crate from an empty stack");
+            picked_up.push_front(elf_crate);
+        }
+
+        let target_stack = self.stacks.get_mut(&target).unwrap();
+
+        for _ in 0..n {
+            let elf_crate = picked_up.pop_front().expect("Error: attempted to lift an elf crate from an empty stack");
+            target_stack.push_front(elf_crate);
         }
     }
 
