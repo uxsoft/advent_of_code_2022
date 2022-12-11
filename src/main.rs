@@ -11,15 +11,16 @@ mod day4;
 mod day4_2;
 mod day5;
 mod day5_2;
-mod day_6;
+mod day6;
+mod day7;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
-    let default_filename = "day6_sharp.txt".to_string();
+    let default_filename = "day7_dry.txt".to_string();
     let filename = args.get(1).unwrap_or(&default_filename);
     
     let input = fs::read_to_string(format!("data\\{}", filename))
         .expect("Wrong file location");
     
-    day_6::process(input);
+    day7::process(input);
 }
