@@ -1,38 +1,4 @@
-use std::{
-    cell::RefCell,
-    collections::HashMap,
-    rc::{Rc, Weak},
-};
-
-pub struct Node {
-    name: String,
-    files: HashMap<String, u32>,
-    parent: Option<Weak<RefCell<Node>>>,
-    directories: Vec<Rc<RefCell<Node>>>,
-}
-
-type NodePtr = Rc<RefCell<Node>>;
-
-pub struct Tree {
-    root: NodePtr
-}
-
-impl Node {
-    pub fn new(name: String, parent: Option<NodePtr>) -> Node {
-        Node {
-            name,
-            parent: parent.map(|x| Rc::downgrade(&x)),
-            files: HashMap::new(),
-            directories: Vec::new(),
-        }
-    }
-}
-
-impl From<Node> for NodePtr {
-    fn from(node: Node) -> NodePtr {
-        Rc::new(RefCell::new(node))
-    }
-}
+use std::collections::HashMap;
 
 #[derive(Debug)]
 pub enum ElFSCommand {
@@ -61,39 +27,74 @@ impl ElFSCommand {
     }
 }
 
+type NodeId = usize;
+
+pub fn id(counter: &mut NodeId) -> NodeId {
+    *counter += 1;
+    *counter
+}
+
 pub fn process(input: String) {
     let commands: Vec<&str> = input.split("$").skip(1).collect();
-
-    let root = Node::new("root".to_string(), None);
-    let mut current_dir : NodePtr = root.into();
+    
+    let mut next_id : NodeId = 0;
+    let mut node_names : HashMap<NodeId, String> = HashMap::new();
+    let mut node_parent : HashMap<NodeId, NodeId> = HashMap::new();
+    let mut node_files : HashMap<NodeId, Vec<(String, u32)>> = HashMap::new();
+    let mut node_dirs : HashMap<NodeId, Vec<NodeId>> = HashMap::new();
+    
+    
+    let root_id = id(&mut next_id);
+    node_names.insert(root_id, "root".to_string());
+    node_files.insert(root_id, Vec::new());
+    node_dirs.insert(root_id, Vec::new());
+    
+    let mut current_dir_id = root_id;
 
     for cmd in commands {
         let command = ElFSCommand::parse(cmd).expect("Could not parse the command");
         match command {
             ElFSCommand::CdRoot => {
-                current_dir = root.into();
-                println!("Changed dir to root");
+                println!("Changing dir to root");
+                current_dir_id = root_id;
             }
             ElFSCommand::CdUp => {
-                let parent = current_dir.borrow().parent.expect("This directory has no parent").upgrade().unwrap();
-                current_dir = parent;
+                println!("Changing dir to parent");
+                let parent_id = node_parent.get(&current_dir_id).expect("This directory has no parent directory, can't cd ..");
+                current_dir_id = *parent_id;
             }
             ElFSCommand::Cd(target_dir_name) => {
-                let child = nodes.get(current_dir).unwrap().directories.iter()
-                    .find(|x| { nodes.get(x).unwrap().name == target_dir_name })
+                println!("Changing dir to named child ({})", target_dir_name);
+                let children = node_dirs.get(&current_dir_id).unwrap();
+                let child_id = children.iter()
+                    .find(|x| { *node_names.get(x).unwrap() == target_dir_name })
                     .expect("Tried to change into a sub-directory which doesn't exist in the current directory");
-                current_dir = child;
+
+                current_dir_id = *child_id;
             }
-            ElFSCommand::Ls(lsoutput) => {
-                for line in lsoutput.lines() {
-                    if line.starts_with("dir") {
-                        let dir_name = line.trim_start_matches("dir ");
-                        let new_node = Node::new(
-                            idgen.new_id(),
-                            "dir_name".to_string(),
-                            Some(*current_dir),
-                        );
-                        nodes.insert(new_node.id, new_node);
+            ElFSCommand::Ls(ls) => {
+                for line in ls.lines() {
+                    if line.starts_with("dir") { // Directory [dir a]
+                        let name = line.trim_start_matches("dir ").to_string();
+                        let id = id(&mut next_id);
+                        println!("Creating dir {} (id={}) in dir {}", name, id, current_dir_id);
+                        
+                        // new node
+                        node_names.insert(id, name);
+                        node_files.insert(id, Vec::new());
+                        node_dirs.insert(id, Vec::new());
+                        
+                        // parent child relationship
+                        node_parent.insert(id, current_dir_id);
+                        node_dirs.get_mut(&current_dir_id).unwrap().push(id);
+                    } else { // File [123 file.txt]
+                        let parts : Vec<&str> = line.split(" ").collect();
+                        let size = parts[0].parse::<u32>().expect("Size of a file isn't a number");
+                        let name = parts[1].to_string();
+                        println!("Creating file {} in dir {}", name, current_dir_id);
+                        
+                        let files = node_files.get_mut(&current_dir_id).unwrap();
+                        files.push((name, size));
                     }
                 }
             }
