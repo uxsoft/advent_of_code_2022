@@ -13,6 +13,8 @@ mod day5;
 mod day5_2;
 mod day6;
 mod day7;
+mod day7_2;
+mod day8;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -22,5 +24,5 @@ fn main() {
     let input = fs::read_to_string(format!("data\\{}", filename))
         .expect("Wrong file location");
     
-    day7::process(input);
+    day7_2::process(input);
 }
