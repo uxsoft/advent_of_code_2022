@@ -34,15 +34,32 @@ pub fn id(counter: &mut NodeId) -> NodeId {
     *counter
 }
 
+pub fn calc_sizes(node_id: NodeId, node_files: &HashMap<NodeId, Vec<(String, u32)>>, node_dirs: &HashMap<NodeId, Vec<NodeId>>, node_size: &mut HashMap<NodeId, u32>) -> u32 {
+    let dir_size: u32 = node_dirs
+        .get(&node_id)
+        .unwrap().iter()
+        .map(|i| calc_sizes(*i, node_files, node_dirs, node_size))
+        .sum();
+    let file_size: u32 = node_files
+        .get(&node_id)
+        .unwrap().iter()
+        .map(|i| i.1)
+        .sum();
+    
+    let total_size = file_size + dir_size;
+    node_size.insert(node_id, total_size);
+    total_size
+}
+
 pub fn process(input: String) {
     let commands: Vec<&str> = input.split("$").skip(1).collect();
     
-    let mut next_id : NodeId = 0;
-    let mut node_names : HashMap<NodeId, String> = HashMap::new();
-    let mut node_parent : HashMap<NodeId, NodeId> = HashMap::new();
-    let mut node_files : HashMap<NodeId, Vec<(String, u32)>> = HashMap::new();
-    let mut node_dirs : HashMap<NodeId, Vec<NodeId>> = HashMap::new();
-    
+    let mut next_id: NodeId = 0;
+    let mut node_names: HashMap<NodeId, String> = HashMap::new();
+    let mut node_parent: HashMap<NodeId, NodeId> = HashMap::new();
+    let mut node_files: HashMap<NodeId, Vec<(String, u32)>> = HashMap::new();
+    let mut node_dirs: HashMap<NodeId, Vec<NodeId>> = HashMap::new();
+    let mut node_size: HashMap<NodeId, u32> = HashMap::new();
     
     let root_id = id(&mut next_id);
     node_names.insert(root_id, "root".to_string());
@@ -100,6 +117,15 @@ pub fn process(input: String) {
             }
         }
     }
+    
+    let used_size = calc_sizes(root_id, &node_files, &node_dirs, &mut node_size);
+    let update_size: u32 = 30000000;
+    let system_size: u32 = 70000000;
+    let space_needed: u32 = used_size + update_size - system_size;
+    
+    println!("Space needed: {}", space_needed);
+    let dir_size_to_delete = node_size.values().filter(|v| **v > space_needed).min().unwrap();
+    println!("Dir to delete: {}", dir_size_to_delete);
 }
 
 #[cfg(test)]
