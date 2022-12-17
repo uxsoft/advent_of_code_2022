@@ -1,9 +1,5 @@
 use std::cmp;
 
-pub fn is_visible(i: usize, j: usize, field: &Vec<Vec<u8>>) -> bool {
-    false
-}
-
 pub fn process(input: String) {
     let field: Vec<Vec<u8>> = input
         .lines()
