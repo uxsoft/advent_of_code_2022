@@ -1,5 +1,3 @@
-use std::cmp;
-
 pub fn process(input: String) {
     let field: Vec<Vec<u8>> = input
         .lines()

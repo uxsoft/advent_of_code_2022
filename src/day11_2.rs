@@ -1,4 +1,4 @@
-use std::collections::{HashMap, LinkedList};
+use std::collections::LinkedList;
 use regex::Regex;
 use itertools::Itertools;
 
@@ -113,7 +113,7 @@ pub fn process(input: String) {
     
     let modulo: u128 = monkeys.iter().map(|m| m.test).product();
     
-    for round in 0..10000 {
+    for _round in 0..10000 {
         for i in 0..monkeys.len() {
             let outbox = monkeys.get_mut(i).unwrap().inspect_items(modulo);
             for (id, item) in outbox {

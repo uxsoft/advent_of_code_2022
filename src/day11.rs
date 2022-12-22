@@ -1,4 +1,4 @@
-use std::collections::{HashMap, LinkedList};
+use std::collections::LinkedList;
 use regex::Regex;
 use itertools::Itertools;
 
@@ -113,7 +113,7 @@ pub fn process(input: String) {
     
     dbg!(&monkeys);
     
-    for round in 0..20 {
+    for _round in 0..20 {
         for i in 0..monkeys.len() {
             let outbox = monkeys.get_mut(i).unwrap().inspect_items();
             for (id, item) in outbox {

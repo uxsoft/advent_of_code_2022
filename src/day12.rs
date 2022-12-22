@@ -126,7 +126,7 @@ impl Map {
 }
 
 pub fn process(input: String) {
-    let mut map = Map::parse(&input);
+    let map = Map::parse(&input);
     let exit = map.find_exit();
     
     let min_distance = map.fields

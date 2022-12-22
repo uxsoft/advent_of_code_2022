@@ -13,10 +13,6 @@ impl ElfPair {
             elf2: Range { start: c, end: d },
         }
     }
-
-    pub fn fully_contains(&self, other: &ElfPair) -> u32 {
-        0
-    }
 }
 
 #[derive(Debug)]
