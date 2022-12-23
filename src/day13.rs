@@ -1,4 +1,4 @@
-use std::{convert::identity, cmp::Ordering};
+use std::{cmp::Ordering};
 
 use nom::{sequence::{separated_pair, delimited}, multi::{separated_list1, separated_list0}, IResult, bytes::complete::tag, character::complete::newline, Parser, branch::alt};
 
