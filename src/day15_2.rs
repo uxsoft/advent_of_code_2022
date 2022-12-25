@@ -79,7 +79,7 @@ pub fn parse_input(input: &str) -> IResult<&str, Vec<Sensor>> {
 pub fn process(input: String) {
     let (_, sensors) = parse_input(&input).unwrap();    
     
-    let cr: Vec<_> = sensors.iter().filter(|s| s.in_range(&Spot{ x: 14, y: 11 })).collect();
+    let _cr: Vec<_> = sensors.iter().filter(|s| s.in_range(&Spot{ x: 14, y: 11 })).collect();
     
     // let loc = (100_000..200_000) // 4_000_000
     //     .into_par_iter()
@@ -100,7 +100,7 @@ pub fn process(input: String) {
                 .flat_map(|o| vec![(o.unwrap().0 - 1, y), (o.unwrap().1 + 1, y)])
                 .collect_vec()
         })
-        .filter(|(x, y)| *x > 0 && *x < 4_000_000)
+        .filter(|(x, _y)| *x > 0 && *x < 4_000_000)
         .find_any(|(x, y)| {
             let i = Spot::new(*x, *y);
             return !sensors.iter().any(|s| s.in_range(&i))
