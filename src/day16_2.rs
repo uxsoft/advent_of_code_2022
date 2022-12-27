@@ -1,4 +1,5 @@
-use std::collections::{HashMap, HashSet, LinkedList};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet, LinkedList};
+use std::time::Instant;
 use itertools::Itertools;
 use nom::branch::alt;
 use nom::bytes::complete::{tag};
@@ -37,7 +38,9 @@ struct Cave {
     rooms: Vec<Room>,
     edges: Vec<(usize, usize)>,
     distances: Vec<Vec<u32>>,
-    names: HashMap<String, usize>
+    names: BTreeMap<String, usize>,
+    flow_rates: Vec<u32>,
+    working_valves: Vec<usize>
 }
 
 struct Score {
@@ -61,9 +64,13 @@ impl Cave {
             rooms,
             edges: vec![],
             distances: vec![],
-            names: HashMap::new(),
+            names: BTreeMap::new(),
+            working_valves: vec![],
+            flow_rates: vec![]
         };
         
+        cave.working_valves = cave.build_working_valves();
+        cave.flow_rates = cave.build_flow_rates();
         cave.names = cave.build_names();
         cave.edges = cave.build_edges();
         cave.distances = cave.build_distances_flw();
@@ -84,7 +91,7 @@ impl Cave {
         self.names.get(name).unwrap().clone()
     }
     
-    pub fn build_names(&self) -> HashMap<String, usize> {
+    fn build_names(&self) -> BTreeMap<String, usize> {
         self.rooms
             .iter()
             .enumerate()
@@ -92,7 +99,7 @@ impl Cave {
             .collect()
     }
     
-    pub fn build_edges(&self) -> Vec<(usize, usize)> {
+    fn build_edges(&self) -> Vec<(usize, usize)> {
         self.rooms
             .iter()
             .flat_map(|f| 
@@ -101,8 +108,15 @@ impl Cave {
                     .map(|t| (self.index_of(&f.name), self.index_of(t))))
             .collect_vec()
     }
+
+    fn build_flow_rates(&self) -> Vec<u32> {
+        self.rooms
+            .iter()
+            .map(|r| r.flow)
+            .collect()
+    }
     
-    pub fn build_distances_flw(&self) -> Vec<Vec<u32>> {
+    fn build_distances_flw(&self) -> Vec<Vec<u32>> {
         let v_dim = self.rooms.len();
         let mut dist = vec![vec![u16::MAX as u32; v_dim]; v_dim];
         
@@ -124,8 +138,16 @@ impl Cave {
         
         dist
     }
-    
 
+    fn build_working_valves(&self) -> Vec<usize> {
+        self.rooms
+            .iter()
+            .enumerate()
+            .filter(|(_, r)| r.flow > 0)
+            .map(|(i, _)| i)
+            .collect()
+    }
+    
     pub fn build_plans(&self, max_time: u32) -> u32 {
         let mut score = Score { max: 0 };
         let mut incomplete = LinkedList::new();
@@ -160,6 +182,59 @@ impl Cave {
         score.max
     }
 
+    pub fn build_plans_rec_init(&self, max_time: u32) -> u32
+    {
+        
+        let starting_room = self.index_of("AA");
+        let remaining = self.working_valves.iter().cloned().collect();
+        self.build_plans_rec(
+            max_time,
+            max_time, 
+            &starting_room,
+            &starting_room,
+            remaining)
+    }
+    
+    // Gives a bad result though
+    pub fn build_plans_rec(&self, pl_time: u32, el_time: u32, pl_room: &usize, el_room: &usize, remaining: HashSet<usize>) -> u32 {
+        let mut best = 0u32;
+        for next_valve in &remaining {
+            let mut new_remaining = remaining.clone();
+            new_remaining.remove(&next_valve);
+            
+            let flow = self.flow_rates[*next_valve];
+            
+            if pl_time > el_time {
+                let dist = self.distances[*pl_room][*next_valve];
+                if pl_time > dist + 1 {
+                    let new_pl_time = pl_time - dist - 1;
+                    let value = new_pl_time * flow;
+
+                    best = best.max(
+                        value +
+                        self.build_plans_rec(new_pl_time, el_time, next_valve, el_room, new_remaining)
+                    )
+                } else {
+                    continue;
+                }
+            } else {
+                let dist = self.distances[*el_room][*next_valve];
+                if el_time > dist + 1 {
+                    let new_el_time = el_time - dist - 1;
+                    let value = new_el_time * flow;
+
+                    best = best.max(
+                        value +
+                            self.build_plans_rec(pl_time, new_el_time, pl_room, next_valve, new_remaining)
+                    )
+                } else {
+                    continue;
+                }
+            }
+        }
+        best
+    }
+    
     pub fn build_plans_parallel(&self, max_time: u32) -> u32 {
         let valves = self.rooms.iter().filter(|r| r.flow > 0).collect_vec();
         valves
@@ -209,7 +284,8 @@ impl Cave {
                 }
             }
         }
-
+        
+        println!("Finished segment {} with max {}", segment, score.max);
         score.max
     }
 }
@@ -274,11 +350,14 @@ impl Plan {
 pub fn process(input: String) {
     let (_, cave) =  Cave::parse(&input).unwrap();
     
+    let now = Instant::now();
+    
     let max_score: u32 = 
-        cave.build_plans_parallel(26);
+        cave.build_plans_rec_init(26);
     
     println!("Maximum pressure relieved: {}", max_score);
-    println!("1933");
+    println!("Solved in {:.2?}", now.elapsed());
+    println!("Correct result: 1933");
 }
 
 
