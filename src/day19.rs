@@ -190,7 +190,7 @@ impl Robot {
 }
 
 pub fn process(input: String) {
-    let result = bp1_test(input);
+    let result = part1(input);
 
     println!("Result: {}", result);
 }
@@ -207,7 +207,7 @@ fn part1(input: String) -> String {
     let bps = Blueprint::parse(&input);
 
     let total_score: u32 = bps
-        .par_iter()
+        .iter()
         .map(|bp| {
             let score = bp.score();
             println!("Blueprint {}: {} geodes", bp.id, score);
