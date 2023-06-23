@@ -144,10 +144,59 @@ impl Blueprint {
     }
 
     fn score_rec(&self, minute: u8, robots: Resources, storage: Resources) -> (String, u32) {
-        
+        let mut log = format!("== Minute {minute} ==\n");
+        let next_minute = minute + 1;
+        let next_storage = storage + robots;
 
+        // Prune
+        if minute >= 10 && robots.clay == 0 {
+            return (log + "cut no clay production", 0);
+        } else if minute >= 15 && robots.obsidian == 0 {
+            return (log + "cut no obsidian production", 0);
+        } else if minute >= 20 && robots.geode == 0 {
+            return (log + "cut no geode production", 0);
+        } else if minute >= 24 {
+            println!("tick: {}", next_storage.geode);
+            return (log, next_storage.geode);
+        }
 
-        ("".to_owned(), 0)
+        // Spend
+        let mut best_robot = None;
+        let (mut best_log, mut best_score) = self.score_rec(next_minute, robots, next_storage);
+
+        for robot in Robot::options() {
+            let robot_cost = self.costs.get(&robot).unwrap();
+            if storage > *robot_cost {
+                let next_robots = Resources {
+                    ore: robots.ore + if let Robot::Ore = robot { 1 } else { 0 },
+                    clay: robots.clay + if let Robot::Clay = robot { 1 } else { 0 },
+                    obsidian: robots.obsidian + if let Robot::Obsidian = robot { 1 } else { 0 },
+                    geode: robots.geode + if let Robot::Geode = robot { 1 } else { 0 },
+                };
+
+                let branch = self.score_rec(next_minute, next_robots, next_storage);
+
+                if branch.1 > best_score {
+                    best_log = branch.0;
+                    best_score = branch.1;
+                    best_robot = Some(robot);
+                }
+            }
+        }
+        if let Some(r) = &best_robot {
+            log.push_str(&format!("Started building {:?} robot", r));
+        }
+        // Collect
+        log.push_str(&format!("Collected resources: {:?}", next_storage));
+
+        // Robot ready
+        if let Some(r) = &best_robot {
+            log.push_str(&format!(
+                "Finished building a {:?} robot, now we have {:?}",
+                r, robots
+            ));
+        }
+        return (log + &best_log, best_score);
     }
 }
 
@@ -159,11 +208,27 @@ enum Robot {
     Geode,
 }
 
+impl Robot {
+    pub fn options() -> [Robot; 4] {
+        [Robot::Ore, Robot::Clay, Robot::Obsidian, Robot::Geode]
+    }
+}
+
 struct Simulation {}
 
 pub fn process(input: String) {
-    let result = part1(input);
+    let result = bp1_test(input);
+
     println!("Result: {}", result);
+}
+
+fn bp1_test(input: String) -> u32 {
+    let bps = Blueprint::parse(&input);
+    let bp = bps.get(0).unwrap();
+    let (log, result) = bp.score();
+
+    println!("{}", log);
+    return result;
 }
 
 fn part1(input: String) -> String {
