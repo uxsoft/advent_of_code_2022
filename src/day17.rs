@@ -44,7 +44,7 @@ trait Rock {
 
 
 pub fn process(input: String) {
-    let (_, wind) = Wind::parse(&input).unwrap();
+    let (_, _wind) = Wind::parse(&input).unwrap();
     
     
 }

@@ -90,7 +90,7 @@ fn part1(input: String) -> String {
     snafu_total.to_string()
 }
 
-fn part2(input: String) -> String {
+fn part2(_input: String) -> String {
     "".to_owned()
 }
 
@@ -149,8 +149,8 @@ mod tests {
 
     #[test]
     fn test_example2() {
-        let input = include_str!("../data/day25_dry.txt");
-        let result = part2(input.to_owned());
-        assert_eq!(result, "???");
+        let input = include_str!("../data/day25_sharp.txt");
+        let result = part1(input.to_owned());
+        assert_eq!(result, "20=022=21--=2--12=-2");
     }
 }

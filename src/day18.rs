@@ -61,34 +61,34 @@ enum State {
 }
 
 fn neighbors(x: usize, y: usize, z: usize) -> Vec<(usize, usize, usize)> {
-    let mut Q: Vec<(usize, usize, usize)> = vec![];
+    let mut q: Vec<(usize, usize, usize)> = vec![];
     if x > 0 {
-        Q.push((x - 1, y, z));
+        q.push((x - 1, y, z));
     }
     if x < 24 {
-        Q.push((x + 1, y, z));
+        q.push((x + 1, y, z));
     }
     if y > 0 {
-        Q.push((x, y - 1, z));
+        q.push((x, y - 1, z));
     }
     if y < 24 {
-        Q.push((x, y + 1, z));
+        q.push((x, y + 1, z));
     }
     if z > 0 {
-        Q.push((x, y, z - 1));
+        q.push((x, y, z - 1));
     }
     if z < 24 {
-        Q.push((x, y, z + 1));
+        q.push((x, y, z + 1));
     }
-    Q
+    q
 }
 
 fn flood_fill(grid: &mut [[[State; 25]; 25]; 25]) -> u32 {
     let mut hit_rock = 0u32;
-    let mut Q = LinkedList::new();
-    Q.push_back((0usize, 0usize, 0usize));
+    let mut q = LinkedList::new();
+    q.push_back((0usize, 0usize, 0usize));
 
-    while let Some((x, y, z)) = Q.pop_front() {
+    while let Some((x, y, z)) = q.pop_front() {
         
         // match grid[x][y][z] {
         //     State::Visited => continue,
@@ -101,7 +101,7 @@ fn flood_fill(grid: &mut [[[State; 25]; 25]; 25]) -> u32 {
         for (nx, ny, nz) in neighbors(x, y, z) {
             match grid[nx][ny][nz] {
                 State::Unvisited => {
-                    Q.push_back((nx, ny, nz));
+                    q.push_back((nx, ny, nz));
                     grid[nx][ny][nz] = State::Visited;
                 }
                 State::Visited => {}
