@@ -3,7 +3,6 @@ use regex::Regex;
 use std::{
     cmp::Ordering,
     collections::HashMap,
-    fmt::format,
     ops::{Add, Sub},
 };
 
@@ -13,6 +12,15 @@ struct Resources {
     clay: u32,
     obsidian: u32,
     geode: u32,
+}
+
+impl Resources {
+    pub fn has(&self, other: &Resources) -> bool {
+        return self.ore >= other.ore
+            && self.clay >= other.clay
+            && self.obsidian >= other.obsidian
+            && self.geode >= other.geode;
+    }
 }
 
 impl Default for Resources {
@@ -48,31 +56,6 @@ impl Sub for Resources {
             clay: self.clay - rhs.clay,
             obsidian: self.obsidian - rhs.obsidian,
             geode: self.geode - rhs.geode,
-        }
-    }
-}
-
-impl PartialEq for Resources {
-    fn eq(&self, other: &Self) -> bool {
-        self.ore == other.ore
-            && self.clay == other.clay
-            && self.obsidian == other.obsidian
-            && self.geode == other.geode
-    }
-}
-
-impl PartialOrd for Resources {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        if self.eq(other) {
-            Some(Ordering::Equal)
-        } else if self.ore >= other.ore
-            && self.clay >= other.clay
-            && self.obsidian >= other.obsidian
-            && self.geode >= other.geode
-        {
-            Some(Ordering::Greater)
-        } else {
-            Some(Ordering::Less)
         }
     }
 }
@@ -132,7 +115,7 @@ impl Blueprint {
         blueprints
     }
 
-    pub fn score(&self) -> (String, u32) {
+    pub fn score(&self) -> u32 {
         self.score_rec(
             1,
             Resources {
@@ -143,60 +126,41 @@ impl Blueprint {
         )
     }
 
-    fn score_rec(&self, minute: u8, robots: Resources, storage: Resources) -> (String, u32) {
-        let mut log = format!("== Minute {minute} ==\n");
-        let next_minute = minute + 1;
-        let next_storage = storage + robots;
+    fn score_rec(&self, minute: u8, robots: Resources, storage: Resources) -> u32 {
+        Robot::unlocked(robots)
+            .iter()
+            .map(|next_robot| {
+                let robot_cost = self.costs.get(&next_robot).unwrap();
+                let mut next_minute = minute;
+                let mut next_storage = storage;
 
-        // Prune
-        if minute >= 10 && robots.clay == 0 {
-            return (log + "cut no clay production", 0);
-        } else if minute >= 15 && robots.obsidian == 0 {
-            return (log + "cut no obsidian production", 0);
-        } else if minute >= 20 && robots.geode == 0 {
-            return (log + "cut no geode production", 0);
-        } else if minute >= 24 {
-            println!("tick: {}", next_storage.geode);
-            return (log, next_storage.geode);
-        }
-
-        // Spend
-        let mut best_robot = None;
-        let (mut best_log, mut best_score) = self.score_rec(next_minute, robots, next_storage);
-
-        for robot in Robot::options() {
-            let robot_cost = self.costs.get(&robot).unwrap();
-            if storage > *robot_cost {
-                let next_robots = Resources {
-                    ore: robots.ore + if let Robot::Ore = robot { 1 } else { 0 },
-                    clay: robots.clay + if let Robot::Clay = robot { 1 } else { 0 },
-                    obsidian: robots.obsidian + if let Robot::Obsidian = robot { 1 } else { 0 },
-                    geode: robots.geode + if let Robot::Geode = robot { 1 } else { 0 },
-                };
-
-                let branch = self.score_rec(next_minute, next_robots, next_storage);
-
-                if branch.1 > best_score {
-                    best_log = branch.0;
-                    best_score = branch.1;
-                    best_robot = Some(robot);
+                while next_minute < 25 && !next_storage.has(robot_cost) {
+                    next_minute = next_minute + 1;
+                    next_storage = next_storage + robots;
+                    //println!("minute: {}", next_minute);
                 }
-            }
-        }
-        if let Some(r) = &best_robot {
-            log.push_str(&format!("Started building {:?} robot", r));
-        }
-        // Collect
-        log.push_str(&format!("Collected resources: {:?}", next_storage));
 
-        // Robot ready
-        if let Some(r) = &best_robot {
-            log.push_str(&format!(
-                "Finished building a {:?} robot, now we have {:?}",
-                r, robots
-            ));
-        }
-        return (log + &best_log, best_score);
+                if next_minute >= 24 {
+                    return next_storage.geode;
+                } else {
+                    next_minute = next_minute + 1;
+                    next_storage = next_storage - *robot_cost + robots;
+                    let next_robots = Resources {
+                        ore: robots.ore + if let Robot::Ore = next_robot { 1 } else { 0 },
+                        clay: robots.clay + if let Robot::Clay = next_robot { 1 } else { 0 },
+                        obsidian: robots.obsidian
+                            + if let Robot::Obsidian = next_robot {
+                                1
+                            } else {
+                                0
+                            },
+                        geode: robots.geode + if let Robot::Geode = next_robot { 1 } else { 0 },
+                    };
+                    return self.score_rec(next_minute, next_robots, next_storage);
+                }
+            })
+            .max()
+            .unwrap()
     }
 }
 
@@ -209,12 +173,21 @@ enum Robot {
 }
 
 impl Robot {
-    pub fn options() -> [Robot; 4] {
+    pub fn all() -> [Robot; 4] {
         [Robot::Ore, Robot::Clay, Robot::Obsidian, Robot::Geode]
     }
-}
 
-struct Simulation {}
+    pub fn unlocked(robots: Resources) -> Vec<Robot> {
+        let mut result = vec![Robot::Ore, Robot::Clay];
+        if robots.clay > 0 {
+            result.push(Robot::Obsidian);
+        }
+        if robots.obsidian > 0 {
+            result.push(Robot::Geode);
+        }
+        result
+    }
+}
 
 pub fn process(input: String) {
     let result = bp1_test(input);
@@ -224,10 +197,9 @@ pub fn process(input: String) {
 
 fn bp1_test(input: String) -> u32 {
     let bps = Blueprint::parse(&input);
-    let bp = bps.get(0).unwrap();
-    let (log, result) = bp.score();
+    let bp = bps.get(1).unwrap();
+    let result = bp.score();
 
-    println!("{}", log);
     return result;
 }
 
@@ -237,9 +209,8 @@ fn part1(input: String) -> String {
     let total_score: u32 = bps
         .par_iter()
         .map(|bp| {
-            let (recipe, score) = bp.score();
+            let score = bp.score();
             println!("Blueprint {}: {} geodes", bp.id, score);
-            println!("{}", recipe);
             bp.id * score
         })
         .sum();
