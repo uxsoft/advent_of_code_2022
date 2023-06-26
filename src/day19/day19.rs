@@ -1,7 +1,5 @@
-use rayon::prelude::*;
 use regex::Regex;
 use std::{
-    cmp::Ordering,
     collections::HashMap,
     ops::{Add, Sub},
 };
@@ -115,8 +113,25 @@ impl Blueprint {
         blueprints
     }
 
-    pub fn score(&self) -> u32 {
+    pub fn score(&self, time_limit: u8) -> u32 {
+        let mut max_score = 0;
+
+        let max_robots = self
+            .costs
+            .values()
+            .map(|a| *a)
+            .reduce(|a, b| Resources {
+                ore: a.ore.max(b.ore),
+                clay: a.clay.max(b.clay),
+                obsidian: a.obsidian.max(b.obsidian),
+                geode: a.geode.max(b.geode),
+            })
+            .unwrap();
+
         self.score_rec(
+            time_limit,
+            &mut max_score,
+            &max_robots,
             1,
             Resources {
                 ore: 1,
@@ -126,37 +141,58 @@ impl Blueprint {
         )
     }
 
-    fn score_rec(&self, minute: u8, robots: Resources, storage: Resources) -> u32 {
+    fn score_rec(
+        &self,
+        time_limit: u8,
+        max_score: &mut u32,
+        max_robots: &Resources,
+        minute: u8,
+        robots: Resources,
+        storage: Resources,
+    ) -> u32 {
         Robot::unlocked(robots)
             .iter()
-            .map(|next_robot| {
-                let robot_cost = self.costs.get(&next_robot).unwrap();
+            .map(|robot| {
+                match robot {
+                    // No point in making more robots than max
+                    Robot::Ore if robots.ore >= max_robots.ore => return 0,
+                    Robot::Clay if robots.clay >= max_robots.clay => return 0,
+                    Robot::Obsidian if robots.obsidian >= max_robots.obsidian => return 0,
+                    _ => (),
+                }
+
+                let robot_cost = self.costs.get(&robot).unwrap();
                 let mut next_minute = minute;
                 let mut next_storage = storage;
 
-                while next_minute < 25 && !next_storage.has(robot_cost) {
+                while next_minute <= time_limit && !next_storage.has(robot_cost) {
                     next_minute = next_minute + 1;
                     next_storage = next_storage + robots;
-                    //println!("minute: {}", next_minute);
                 }
 
-                if next_minute >= 24 {
+                if next_minute >= time_limit {
+                    if next_storage.geode > *max_score {
+                        *max_score = next_storage.geode;
+                        println!("{}", next_storage.geode)
+                    }
                     return next_storage.geode;
                 } else {
                     next_minute = next_minute + 1;
                     next_storage = next_storage - *robot_cost + robots;
                     let next_robots = Resources {
-                        ore: robots.ore + if let Robot::Ore = next_robot { 1 } else { 0 },
-                        clay: robots.clay + if let Robot::Clay = next_robot { 1 } else { 0 },
-                        obsidian: robots.obsidian
-                            + if let Robot::Obsidian = next_robot {
-                                1
-                            } else {
-                                0
-                            },
-                        geode: robots.geode + if let Robot::Geode = next_robot { 1 } else { 0 },
+                        ore: robots.ore + if let Robot::Ore = robot { 1 } else { 0 },
+                        clay: robots.clay + if let Robot::Clay = robot { 1 } else { 0 },
+                        obsidian: robots.obsidian + if let Robot::Obsidian = robot { 1 } else { 0 },
+                        geode: robots.geode + if let Robot::Geode = robot { 1 } else { 0 },
                     };
-                    return self.score_rec(next_minute, next_robots, next_storage);
+                    return self.score_rec(
+                        time_limit,
+                        max_score,
+                        max_robots,
+                        next_minute,
+                        next_robots,
+                        next_storage,
+                    );
                 }
             })
             .max()
@@ -165,6 +201,7 @@ impl Blueprint {
 }
 
 #[derive(Debug, Eq, PartialEq, Hash)]
+#[repr(u8)]
 enum Robot {
     Ore,
     Clay,
@@ -173,32 +210,29 @@ enum Robot {
 }
 
 impl Robot {
-    pub fn all() -> [Robot; 4] {
-        [Robot::Ore, Robot::Clay, Robot::Obsidian, Robot::Geode]
-    }
+    const ALL: [Robot; 4] = [Robot::Geode, Robot::Obsidian, Robot::Clay, Robot::Ore];
 
-    pub fn unlocked(robots: Resources) -> Vec<Robot> {
-        let mut result = vec![Robot::Ore, Robot::Clay];
-        if robots.clay > 0 {
-            result.push(Robot::Obsidian);
-        }
+    pub fn unlocked(robots: Resources) -> &'static [Robot] {
         if robots.obsidian > 0 {
-            result.push(Robot::Geode);
+            &Robot::ALL[0..4]
+        } else if robots.clay > 0 {
+            &Robot::ALL[1..4]
+        } else {
+            &Robot::ALL[2..4]
         }
-        result
     }
 }
 
 pub fn process(input: String) {
-    let result = part1(input);
+    let result = part2(input);
 
     println!("Result: {}", result);
 }
 
-fn bp1_test(input: String) -> u32 {
+fn single_bp(input: String) -> u32 {
     let bps = Blueprint::parse(&input);
-    let bp = bps.get(1).unwrap();
-    let result = bp.score();
+    let bp = bps.get(2).unwrap();
+    let result = bp.score(32);
 
     return result;
 }
@@ -209,11 +243,28 @@ fn part1(input: String) -> String {
     let total_score: u32 = bps
         .iter()
         .map(|bp| {
-            let score = bp.score();
+            let score = bp.score(24);
             println!("Blueprint {}: {} geodes", bp.id, score);
             bp.id * score
         })
         .sum();
+
+    return format!("Total score: {total_score}");
+}
+
+fn part2(input: String) -> String {
+    let bps = Blueprint::parse(&input);
+
+    let total_score: u32 = bps
+        .iter()
+        .take(3)
+        .map(|bp| {
+            let score = bp.score(32);
+            println!("Blueprint {}: {} geodes", bp.id, score);
+            bp.id * score
+        })
+        .reduce(|a, b| a * b)
+        .unwrap();
 
     return format!("Total score: {total_score}");
 }
