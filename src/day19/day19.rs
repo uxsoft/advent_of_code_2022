@@ -261,7 +261,7 @@ fn part2(input: String) -> String {
         .map(|bp| {
             let score = bp.score(32);
             println!("Blueprint {}: {} geodes", bp.id, score);
-            bp.id * score
+            score
         })
         .reduce(|a, b| a * b)
         .unwrap();
@@ -280,4 +280,19 @@ mod tests {
         let bp = Blueprint::parse(input);
         println!("{:?}", bp);
     }
+
+    #[test]
+    fn test_part1() {
+        let input = "".to_owned();
+        let result = part1(input);
+        assert_eq!(result, "Total score: 1589");
+    }
+
+    #[test]
+    fn test_part2() {
+        let input = "".to_owned();
+        let result = part2(input);
+        assert_eq!(result, "Total score: 29348");
+    }
+    
 }
